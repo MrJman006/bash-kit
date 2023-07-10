@@ -43,8 +43,9 @@ function cleanup()
 #
 # Adding a logger function for all output that is not command output. The
 # logger logs to FD[3] and FD[4] in case log saving is enabled. FD[3] points
-# to STDERR because it supports colors. FD[4] points to '/dev/null' unless
-# log saving is enabled in which case it will point to the log file.
+# to STDERR because it supports colors. FD[4] points to '/dev/null', but will
+# be updated to point to a log file if log saving is enabled. Colors are also
+# defined if the shell environment supports it.
 #
 
 exec 3>&2
@@ -96,8 +97,8 @@ function abort()
 #
 # Log saving can be very helpful for automated scripts or for tracking down
 # issues with a failed script execution, but requires a dedicated log directory.
-# This can be overkill for small manually run scripts. Just remove the log
-# saving setup below if you don't want log saving.
+# This can be overkill for small manually run scripts and so it is disabled by
+# default. To enable it, just uncomment the setup code below.
 #
 
 #readonly LOG_DIR_PATH="/dev/shm/${THIS_SCRIPT_NAME%.*}/logs"
@@ -123,7 +124,7 @@ function abort()
 # logs prior to command output. Wrapping a command with the 'xtrace_*' aliases
 # will print the command to the log before it is executed. You should only wrap
 # individual commands or individual pipe lines. It is not recommended to wrap
-# function calls or large blocks of code as the output become cluttered.
+# function calls or large blocks of code as the output will become cluttered.
 # The last return code before calling 'xtrace_off' is preserved.
 #
 
@@ -162,7 +163,6 @@ MANUAL_PAGE_TEMPLATE="$(cat <<'EOF'
           operations.
         - Command tracing capability.
         - Early termination via an 'abort' function.
-        - Unhandled error notification with line number support.
 
     OPTIONS
         -h|--help
