@@ -154,7 +154,7 @@ function parse_command_line()
                 break
                 ;;
             -?*)
-                abort "Error: Invalid option '${opt}'. Aborting execution. Need --help?"
+                abort "Error: Invalid option '${opt}'."
                 ;;
             *)
                 break
@@ -174,7 +174,7 @@ function parse_command_line()
 
     #if [[ ${#ARGUMENTS[@]} -ne 0 ]]
     #then
-    #    abort "Error: Unexpected arguments detected. Aborting execution."
+    #    abort "Error: Unexpected arguments detected."
     #fi
 }
 
@@ -200,6 +200,7 @@ function abort()
     local message="${1}"
     local exit_code="${2:-1}"
     logit "${RED_ON}${message}${COLOR_OFF}"
+    logit "${RED_ON}Aborting execution.${COLOR_OFF}"
     exit $(( ${exit_code} ))
 }
 
@@ -207,7 +208,7 @@ function check_bash_version()
 {
     if [[ "$(printf "${BASH_VERSION}\n${MINIMUM_BASH_VERSION}" | sort -V | head -n 1)" != "${MINIMUM_BASH_VERSION}" ]]
     then
-        abort "Error: This script depends on BASH version ${MINIMUM_BASH_VERSION} or better. Aborting execution."
+        abort "Error: This script depends on BASH version ${MINIMUM_BASH_VERSION} or better."
     fi
 }
 
