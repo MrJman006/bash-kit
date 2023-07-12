@@ -1,14 +1,15 @@
 #! /usr/bin/env bash
 
 #
-# Setting the shell options below to improve the script's behavior by aborting
-# script execution when a command returns a non-zero return code or when an
-# unset varible is used. This can prevent undesirable side effects caused by
-# commands that are not expected to fail. These options do not prevent you
+# The shell options below improve the script's error detection and handling
+# behavior by aborting execution when a command, function, or sub-shell
+# returns a non-zero return code or when there is an attempt to use an unset
+# varible. Without these options, undesirable side effects can occur when
+# any of the above situations is encountered. These options do not prevent you
 # from writing script code where you expect a command to fail or a variable
-# to be unset some of the time. You just have to use conditional checks with
-# commands you expect to fail and the default variable value syntax
-# (i.e. ${<var-name>:-[default-value]}) without passing a default value.
+# to be unset, you just have to explicitly handle those scenarios with
+# conditional checks in the case of non-zero return codes and the variable
+# default value syntax in the case of unset variables.
 #
 
 set -o errexit
@@ -16,133 +17,66 @@ set -o errtrace
 set -o pipefail
 set -o nounset
 
-readonly START_EXECUTION_TIMESTAMP="$(date +%Y-%m-%d-%H-%M-%S)"
-readonly THIS_SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
-readonly PROJECT_DIR_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-
 #
-# A temporary directory is provided in case the script needs to create and
-# use temporary files and sub-directories. The base path is '/dev/shm' which
-# is a tempory filesystem mount point that uses RAM as the store. This ensures
-# all things put in the temporary directory will actually be temporary, at
-# least between boot cycles. We still trap into a cleanup function to attempt to
-# make everyting temporary between execustions as well.
-#
-
-readonly TEMP_DIR_PATH="/dev/shm/${THIS_SCRIPT_NAME%.*}/tmp/${START_EXECUTION_TIMESTAMP}"
-mkdir -p "${TEMP_DIR_PATH}"
-
-trap cleanup SIGINT SIGTERM ERR EXIT
-
-function cleanup()
-{
-    trap - SIGINT SIGTERM ERR EXIT
-    rm -rf "${TEMP_DIR_PATH}"
-}
-
-#
-# Adding a logger function for all output that is not command output. The
-# logger logs to FD[3] and FD[4] in case log saving is enabled. FD[3] points
-# to STDERR because it supports colors. FD[4] points to '/dev/null', but will
-# be updated to point to a log file if log saving is enabled. Colors are also
-# defined if the shell environment supports it.
-#
-
-exec 3>&2
-exec 4>/dev/null
-
-function logit()
-{
-    local message="${@:-}"
-    echo -e "${message[@]}" 1>&3
-    echo -e "${message[@]}" 1>&4
-}
-
-readonly FD_2=2
-
-if [[ -t ${FD_2} ]] && [[ -z "${NO_COLOR:-}" ]] && [[ "${TERM:-}" != "dumb" ]]
-then
-    COLOR_OFF="\033[0m"
-    RED_ON="\033[0;31m"
-    ORANGE_ON="\033[0;33m"
-    YELLOW_ON="\033[1;33m"
-    GREEN_ON="\033[0;32m"
-    CYAN_ON="\033[0;36m"
-    BLUE_ON="\033[0;34m"
-    PURPLE_ON="\033[0;35m"
-else
-    COLOR_OFF=""
-    RED_ON=""
-    ORANGE_ON=""
-    YELLOW_ON=""
-    GREEN_ON=""
-    CYAN_ON=""
-    BLUE_ON=""
-    PURPLE_ON=""
-fi
-
-#
-# Call abort for all scenarios where you don't want script exectuion to
-# continue.
-#
-
-function abort()
-{
-    local message="${1}"
-    local exit_code="${2:-1}"
-    logit "${message}"
-    exit $(( ${exit_code} ))
-}
-
-#
-# Log saving can be very helpful for automated scripts or for tracking down
-# issues with a failed script execution, but requires a dedicated log directory.
-# This can be overkill for small manually run scripts and so it is disabled by
-# default. To enable it, just uncomment the setup code below.
-#
-
-#readonly LOG_DIR_PATH="/dev/shm/${THIS_SCRIPT_NAME%.*}/logs"
-#mkdir -p "${LOG_DIR_PATH}"
-
-#readonly LOG_FILE_PATH="${LOG_DIR_PATH}/log.${START_EXECUTION_TIMESTAMP}"
-
-#exec 1>"${LOG_FILE_PATH}"
-#exec 2>"${LOG_FILE_PATH}"
-#exec 4>"${LOG_FILE_PATH}"
-
-#trap 'on_unhandled_error ${LINENO}' ERR
-
-#function on_unhandled_error()
-#{
-#    local line_number=${1}
-#    trap - ERR
-#    abort "Error: Unhandled error on line ${line_number}."
-#}
-
-#
-# Sometimes it is useful to see the full command that is being executed in the
-# logs prior to command output. Wrapping a command with the 'xtrace_*' aliases
-# will print the command to the log before it is executed. You should only wrap
-# individual commands or individual pipe lines. It is not recommended to wrap
-# function calls or large blocks of code as the output will become cluttered.
-# The last return code before calling 'xtrace_off' is preserved.
+# Sometimes it is useful to log the full command or pipe line that being
+# executed for reference later. This can be done with the shell option
+# 'xtrace', but enabling it for the entire script makes the output very messy.
+# The aliases below can be used to wrap just the commands you care to
+# log to script output. These should not be used to wrap functions as the
+# trace output will include all lines executed within the function.
 #
 
 shopt -s expand_aliases
-
 alias xtrace_on='{ set -x; } 1>/dev/null 2>&1'
-
 alias xtrace_off='{ set +x; } 1>/dev/null 2>&1'
 
 #
-# Check that the current version of BASH is 4.1.0 or better as some of the
-# features used in this script will fail on older versions of BASH.
+# A set of 'readonly' variables that contain information useful in almost
+# any script.
 #
 
-if [[ "$(printf "${BASH_VERSION}\n4.1.0" | sort -V | head -n 1)" != "4.1.0" ]]
-then
-    abort "Error: This script depends on BASH version 4.1.x or better. Aborting execution."
-fi
+readonly MINIMUM_BASH_VERSION="4.1.0"
+readonly START_EXECUTION_TIMESTAMP="$(date +%Y-%m-%d-%H-%M-%S)"
+readonly THIS_SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+readonly PROJECT_DIR_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+readonly TEMP_DIR_PATH="/dev/shm/${THIS_SCRIPT_NAME%.*}/tmp/${START_EXECUTION_TIMESTAMP}"
+
+#
+# Automatic log saving can be very helpful for automated scripts or for
+# tracking down issues with a failed script execution, but requires a dedicated
+# log directory. This can be overkill for small scripts, so it is disabled by
+# default. To enable it, just uncomment the following components.
+#
+# - 'LOG_DIR_PATH' variable.
+# - 'LOG_FILE_PATH' variable.
+# - 'setup_log_saving' function.
+# - 'on_unhandled_error' function.
+#
+
+#readonly LOG_DIR_PATH="/dev/shm/${THIS_SCRIPT_NAME%.*}/logs"
+#readonly LOG_FILE_PATH="${LOG_DIR_PATH}/log.${START_EXECUTION_TIMESTAMP}"
+
+#
+# Declaring an arguments array and an options dictionary to store parsed
+# command line arguments and options in. They are global so we can avoid
+# unnecessary dependency injection as many different functions will likely
+# use them. Each defined option should have a default so the script can have
+# a default execution path if the user does not supply any options. Both
+# variables should be modified only in the 'parse_command_line' function.
+# All other code should treat these variables as 'readonly'.
+#
+
+declare -a ARGUMENTS
+declare -A OPTIONS
+OPTIONS[NEED_HELP]="no"
+OPTIONS[TEST_OPT_A]="no"
+OPTIONS[TEST_OPT_B]=""
+
+#
+# Declaring a manual page template that can be modified to describe script
+# usage. Don't forget to update this to express changes made to the options
+# dictionary, argument array, or 'parse_command_line' logic.
+#
 
 MANUAL_PAGE_TEMPLATE="$(cat <<'EOF'
     MANUAL_PAGE
@@ -155,8 +89,8 @@ MANUAL_PAGE_TEMPLATE="$(cat <<'EOF'
         This is a BASH script template that can be copied and modified when
         you need to make a new script. It includes the following features.
 
-        - A set of BASH options to improve the scripts error detection bahavior.
-        - Command line parsing of options and arguments.
+        - Improved error detection and handling bahavior.
+        - Infrastructure to parse the command line for options and arguments.
         - Logging that supports colors and the option to save log files
           automatically.
         - Temporary storage that can be used for staging or intermediate file
@@ -182,42 +116,9 @@ MANUAL_PAGE_TEMPLATE="$(cat <<'EOF'
 EOF
 )"
 
-function show_manual_page()
-{
-    local manual_page_path="${TEMP_DIR_PATH}/manual-page.txt"
-
-    echo "${MANUAL_PAGE_TEMPLATE}" 1>"${manual_page_path}"
-
-    #
-    # Remove leading spaces.
-    #
-
-    sed -ri "s/^\s{4}//" "${manual_page_path}"
-
-    #
-    # Fill in template fields.
-    #
-
-    sed -ri "s/@\{SCRIPT_NAME\}/${THIS_SCRIPT_NAME}/g" "${manual_page_path}"
-
-    cat "${manual_page_path}" 1>&3
-    cat "${manual_page_path}" 1>&4
-}
-
 #
-# Declare an options dictionary with a default value for each supported option
-# and an arguments array so all code in the script can easily access both
-# without dependency injection. Only the 'parse_command_line' function should
-# modify these variables. All other code should treat them as 'readonly'.
+# Modify this function to parse supported options and positional arguments.
 #
-
-declare -A OPTIONS
-
-OPTIONS[NEED_HELP]="no"
-OPTIONS[TEST_OPT_A]="no"
-OPTIONS[TEST_OPT_B]=""
-
-declare -a ARGUMENTS
 
 function parse_command_line()
 {
@@ -262,7 +163,7 @@ function parse_command_line()
     ARGUMENTS=("$@")
 
     #
-    # Check for required arguments.
+    # Check for required or unexpected positional arguments.
     #
 
     #if [[ ${#ARGUMENTS[@]} -ne 0 ]]
@@ -271,9 +172,136 @@ function parse_command_line()
     #fi
 }
 
+#
+# Use this function instead of 'echo' or 'printf' for all informational
+# output.
+#
+
+function logit()
+{
+    local message="${@:-}"
+    echo -e "${message[@]}" 1>&3
+    echo -e "${message[@]}" | sed -r "s/[[:cntrl:]]\[([0-9]{1,3};)*[0-9]{1,3}m//g" 1>&4
+}
+
+#
+# Use this function to abort script execution when an error scenario is
+# encountered.
+#
+
+function abort()
+{
+    local message="${1}"
+    local exit_code="${2:-1}"
+    logit "${RED_ON}${message}${COLOR_OFF}"
+    exit $(( ${exit_code} ))
+}
+
+function check_bash_version()
+{
+    if [[ "$(printf "${BASH_VERSION}\n${MINIMUM_BASH_VERSION}" | sort -V | head -n 1)" != "${MINIMUM_BASH_VERSION}" ]]
+    then
+        abort "Error: This script depends on BASH version ${MINIMUM_BASH_VERSION} or better. Aborting execution."
+    fi
+}
+
+function cleanup()
+{
+    trap - SIGINT SIGTERM ERR EXIT
+    rm -rf "${TEMP_DIR_PATH}"
+}
+
+function setup_temp_dir()
+{
+    mkdir -p "${TEMP_DIR_PATH}"
+    trap cleanup SIGINT SIGTERM ERR EXIT
+}
+
+function setup_logger_fds()
+{
+    exec 3>&2
+    exec 4>/dev/null
+}
+
+function setup_logger_color_formatters()
+{
+    if [[ -t 2 ]] && [[ -z "${NO_COLOR:-}" ]] && [[ "${TERM:-}" != "dumb" ]]
+    then
+        COLOR_OFF="\033[0m"
+        RED_ON="\033[0;31m"
+        ORANGE_ON="\033[0;33m"
+        YELLOW_ON="\033[1;33m"
+        GREEN_ON="\033[0;32m"
+        CYAN_ON="\033[0;36m"
+        BLUE_ON="\033[0;34m"
+        PURPLE_ON="\033[0;35m"
+    else
+        COLOR_OFF=""
+        RED_ON=""
+        ORANGE_ON=""
+        YELLOW_ON=""
+        GREEN_ON=""
+        CYAN_ON=""
+        BLUE_ON=""
+        PURPLE_ON=""
+    fi
+}
+
+#function on_unhandled_error()
+#{
+#    local line_number=${1}
+#    trap - ERR
+#    abort "Error: Unhandled error on line ${line_number}."
+#}
+
+#function setup_log_saving()
+#{
+#    mkdir -p "${LOG_DIR_PATH}"
+#    exec 1>"${LOG_FILE_PATH}"
+#    exec 2>&1
+#    exec 4>&1
+#    trap 'on_unhandled_error ${LINENO}' ERR
+#}
+
+function setup_logger()
+{
+    setup_logger_fds
+    setup_logger_color_formatters
+    declare -F "setup_log_saving" 1>/dev/null && setup_log_saving || :
+}
+
+function init()
+{
+    check_bash_version
+    setup_temp_dir
+    setup_logger 
+}
+
+function show_manual_page()
+{
+    local manual_page_path="${TEMP_DIR_PATH}/manual-page.txt"
+
+    echo "${MANUAL_PAGE_TEMPLATE}" 1>"${manual_page_path}"
+
+    #
+    # Remove leading spaces.
+    #
+
+    sed -ri "s/^\s{4}//" "${manual_page_path}"
+
+    #
+    # Fill in template fields.
+    #
+
+    sed -ri "s/@\{SCRIPT_NAME\}/${THIS_SCRIPT_NAME}/g" "${manual_page_path}"
+
+    cat "${manual_page_path}" 1>&3
+    cat "${manual_page_path}" 1>&4
+}
+
 function main()
 {
-    if [ "${OPTIONS[NEED_HELP]}" == "yes" ]
+    if [[ "${OPTIONS[NEED_HELP]}" == "yes" ]]
     then
         show_manual_page
         return 0
@@ -317,4 +345,6 @@ function main()
     logit "----"
 }
 
-parse_command_line "$@" && main
+init
+parse_command_line "$@"
+main
