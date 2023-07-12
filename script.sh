@@ -69,8 +69,8 @@ readonly TEMP_DIR_PATH="/dev/shm/${THIS_SCRIPT_NAME%.*}/tmp/${START_EXECUTION_TI
 declare -a ARGUMENTS
 declare -A OPTIONS
 OPTIONS[NEED_HELP]="no"
-OPTIONS[TEST_OPT_A]="no"
-OPTIONS[TEST_OPT_B]=""
+OPTIONS[DEMO_OPT_A]="no"
+OPTIONS[DEMO_OPT_B]=""
 
 #
 # Declaring a manual page template that can be modified to describe script
@@ -91,25 +91,28 @@ MANUAL_PAGE_TEMPLATE="$(cat <<'EOF'
 
         - Improved error detection and handling bahavior.
         - Infrastructure to parse the command line for options and arguments.
-        - Logging that supports colors and the option to save log files
-          automatically.
+        - Logging that supports colors and the option to automatically log to
+          a file.
         - Temporary storage that can be used for staging or intermediate file
-          operations.
-        - Command tracing capability.
+          operations and is automatically cleaned when script exection finishes.
+        - The ability to trace individual commands or pipe lines.
         - Early termination via an 'abort' function.
+        - Demo 'main' function showing off some of the above features.
+
+        Any feature that is not needed can easily be removed.
 
     OPTIONS
         -h|--help
             Show this manual page.
 
-        -a|--test-opt-a
-            A test option that is just a flag.
+        -a|--demo-opt-a
+            An option that represents a boolean flag.
 
-        -b|--test-opt-b <value>
-            A test option that accepts a parameter.
+        -b|--demo-opt-b <value>
+            An option that represents a named parameter.
 
     ARGUMENTS
-        [argument...]
+        [demo-argument...]
             An optional list of arguments.
 
     END
@@ -128,19 +131,22 @@ function parse_command_line()
 
     while [ $# -gt 0 ]
     do
-        case "${1}" in
+        local opt="${1}"
+
+        case "${opt}" in
             -h|--help)
                 shift
                 OPTIONS[NEED_HELP]="yes"
                 return 0
                 ;;
-            -a|--test-opt-a)
+            -a|--demo-opt-a)
                 shift
-                OPTIONS[TEST_OPT_A]="yes"
+                OPTIONS[DEMO_OPT_A]="yes"
                 ;;
-            -b|--test-opt-b)
+            -b|--demo-opt-b)
                 shift
-                OPTIONS[TEST_OPT_B]="${1}"
+                [[ $# -eq 0 ]] && abort "Error: Missing parameter for option '${opt}'."
+                OPTIONS[DEMO_OPT_B]="${1}"
                 shift
                 ;;
             --)
@@ -148,7 +154,7 @@ function parse_command_line()
                 break
                 ;;
             -?*)
-                abort "Error: Invalid option '${1}'. Aborting execution. Need --help?"
+                abort "Error: Invalid option '${opt}'. Aborting execution. Need --help?"
                 ;;
             *)
                 break
@@ -329,6 +335,7 @@ function main()
     logit "----"
     logit "Example: Using temporary storage."
     xtrace_on
+    ls -1v "${TEMP_DIR_PATH}"
     touch "${TEMP_DIR_PATH}/my-file"
     ls -1v "${TEMP_DIR_PATH}"
     xtrace_off
@@ -338,10 +345,10 @@ function main()
     logit "----"
     logit "Example: Options and arguments."
     logit "Re-run the script with various options and arguments to see how the values below change."
-    logit "test-opt-a: ${OPTIONS[TEST_OPT_A]}"
-    logit "test-opt-b: ${OPTIONS[TEST_OPT_B]}"
-    logit "argument count: ${#ARGUMENTS[@]}"
-    logit "argument list: ${ARGUMENTS[@]}"
+    logit "demo-opt-a: ${OPTIONS[DEMO_OPT_A]}"
+    logit "demo-opt-b: ${OPTIONS[DEMO_OPT_B]}"
+    logit "demo argument count: ${#ARGUMENTS[@]}"
+    logit "demo argument list: ${ARGUMENTS[@]}"
     logit "----"
 }
 

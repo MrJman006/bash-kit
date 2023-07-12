@@ -5,4 +5,4 @@ each item can be found below.
 
 |Component |Description|
 |:---------|:----------|
-|**script.sh**|This is a script template that can be modified and used as a base for new BASH scripts. It has the following features: option/argument parsing, terminal logging with colors (colors optional), automatic logging to file (disabled by default), command tracing aliases, temporary storage space with automatic cleanup, and improved error detection and handling behavior. Any features not needed can be easily removed.|
+|**script.sh**|This is a script template that can be modified and used as a base for new BASH scripts. View the script's manual page (--help option) or source code for details on what features it supports and how to use it.|
