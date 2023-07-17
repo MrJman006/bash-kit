@@ -146,8 +146,9 @@ function parse_command_line()
             -b|--demo-opt-b)
                 shift
                 [[ $# -eq 0 ]] && abort "Error: Missing parameter for option '${opt}'."
-                OPTIONS[DEMO_OPT_B]="${1}"
+                local param="${1}"
                 shift
+                OPTIONS[DEMO_OPT_B]="${param}"
                 ;;
             --)
                 shift
@@ -199,8 +200,8 @@ function abort()
 {
     local message="${1}"
     local exit_code="${2:-1}"
-    logit "${RED_ON}${message}${COLOR_OFF}"
-    logit "${RED_ON}Aborting execution.${COLOR_OFF}"
+    logit "${RED_ON:-}${message}${COLOR_OFF:-}"
+    logit "${RED_ON:-}Aborting execution.${COLOR_OFF:-}"
     exit $(( ${exit_code} ))
 }
 
