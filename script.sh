@@ -145,7 +145,11 @@ function parse_command_line()
                 ;;
             -b|--demo-opt-b)
                 shift
-                [[ $# -eq 0 ]] && abort "Error: Missing parameter for option '${opt}'."
+                if [[ $# -eq 0 ]]
+                then
+                    log_error "Missing parameter for option '${opt}'."
+                    abort
+                fi
                 local param="${1}"
                 shift
                 OPTIONS[DEMO_OPT_B]="${param}"
@@ -155,7 +159,8 @@ function parse_command_line()
                 break
                 ;;
             -?*)
-                abort "Error: Invalid option '${opt}'."
+                log_error "Invalid option '${opt}'."
+                abort
                 ;;
             *)
                 break
@@ -175,13 +180,18 @@ function parse_command_line()
 
     #if [[ ${#ARGUMENTS[@]} -ne 0 ]]
     #then
-    #    abort "Error: Unexpected arguments detected."
+    #    log_error "Unexpected arguments detected."
+    #    abort
     #fi
 }
 
 #
-# Use this function instead of 'echo' or 'printf' for all informational
-# output.
+# Use these functions instead of 'echo' or 'printf' for all informational
+# output as these functions are built to work with automatic log saving
+# if you decide to enable it. 'log_error', 'log_warning', 'log_info' can
+# be used for error, warning, and info messages respectively. 'logit' can
+# be used directly or wrapped in a new logging function for log messages that
+# need one or more customizations (ex. specific coloring, custom prefix, etc.).
 #
 
 function logit()
@@ -191,6 +201,27 @@ function logit()
     echo -e "${message[@]}" | sed -r "s/[[:cntrl:]]\[([0-9]{1,3};)*[0-9]{1,3}m//g" 1>&4
 }
 
+function log_error()
+{
+    local message="${@:-}"
+    echo -e "${RED_ON:-}Error: ${message[@]}${COLOR_OFF:-}" 1>&3
+    echo -e "Error: ${message[@]}" | sed -r "s/[[:cntrl:]]\[([0-9]{1,3};)*[0-9]{1,3}m//g" 1>&4
+}
+
+function log_warning()
+{
+    local message="${@:-}"
+    echo -e "${YELLOW_ON:-}Warning: ${message[@]}${COLOR_OFF:-}" 1>&3
+    echo -e "Warning: ${message[@]}" | sed -r "s/[[:cntrl:]]\[([0-9]{1,3};)*[0-9]{1,3}m//g" 1>&4
+}
+
+function log_info()
+{
+    local message="${@:-}"
+    echo -e "${GREEN_ON:-}Info: ${message[@]}${COLOR_OFF:-}" 1>&3
+    echo -e "Info: ${message[@]}" | sed -r "s/[[:cntrl:]]\[([0-9]{1,3};)*[0-9]{1,3}m//g" 1>&4
+}
+
 #
 # Use this function to abort script execution when an error scenario is
 # encountered.
@@ -198,9 +229,7 @@ function logit()
 
 function abort()
 {
-    local message="${1}"
-    local exit_code="${2:-1}"
-    logit "${RED_ON:-}${message}${COLOR_OFF:-}"
+    local exit_code="${1:-1}"
     logit "${RED_ON:-}Aborting execution.${COLOR_OFF:-}"
     exit $(( ${exit_code} ))
 }
@@ -209,7 +238,8 @@ function check_bash_version()
 {
     if [[ "$(printf "${BASH_VERSION}\n${MINIMUM_BASH_VERSION}" | sort -V | head -n 1)" != "${MINIMUM_BASH_VERSION}" ]]
     then
-        abort "Error: This script depends on BASH version ${MINIMUM_BASH_VERSION} or better."
+        log_error "This script depends on BASH version ${MINIMUM_BASH_VERSION} or better."
+        abort
     fi
 }
 
@@ -259,7 +289,8 @@ function setup_logger_color_formatters()
 #{
 #    local line_number=${1}
 #    trap - ERR
-#    abort "Error: Unhandled error on line ${line_number}."
+#    log_error "Unhandled error on line ${line_number}."
+#    abort
 #}
 
 #function setup_log_saving()
