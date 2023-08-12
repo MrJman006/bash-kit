@@ -4,12 +4,13 @@
 # The shell options below improve the script's error detection and handling
 # behavior by aborting execution when a command, function, or sub-shell
 # returns a non-zero return code or when there is an attempt to use an unset
-# varible. Without these options, undesirable side effects can occur when
-# any of the above situations is encountered. These options do not prevent you
-# from writing script code where you expect a command to fail or a variable
-# to be unset, you just have to explicitly handle those scenarios with
-# conditional checks in the case of non-zero return codes and the variable
-# default value syntax in the case of unset variables.
+# varible. Without these options, the script may continue to execute when any
+# of the above situations occur which is usually an undesirable side effect.
+# Enabling these options does not prevent you from writing script code where
+# you expect a command to fail or a variable to be unset. You just have to
+# explicitly handle each of those scenarios with conditional checks in the
+# case of non-zero return codes and the variable default value syntax in the
+# case of unset variables.
 #
 
 set -o errexit
@@ -19,11 +20,13 @@ set -o nounset
 
 #
 # Sometimes it is useful to log the full command or pipe line that being
-# executed for reference later. This can be done with the shell option
+# executed for reference later. This can be done by enabling the shell option
 # 'xtrace', but enabling it for the entire script makes the output very messy.
 # The aliases below can be used to wrap just the commands you care to
-# log to script output. These should not be used to wrap functions as the
-# trace output will include all lines executed within the function.
+# log to script output which will keep the script output clean. It is strongly
+# recommended to not use these aliases to wrap calls to functions or other
+# scripts as the trace output will include the full content of the function or
+# script call.
 #
 
 shopt -s expand_aliases
@@ -38,8 +41,35 @@ alias xtrace_off='{ set +x; } 1>/dev/null 2>&1'
 readonly MINIMUM_BASH_VERSION="4.1.0"
 readonly START_EXECUTION_TIMESTAMP="$(date +%Y-%m-%d-%H-%M-%S)"
 readonly THIS_SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+readonly THIS_SCRIPT_DIR_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+
+#
+# A readonly variable to set a root project directory. Feel free to set this to
+# a specific working location that fits your needs.
+#
+
 readonly PROJECT_DIR_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-readonly TEMP_DIR_PATH="/dev/shm/${THIS_SCRIPT_NAME%.*}/tmp/${START_EXECUTION_TIMESTAMP}"
+
+#
+# Many times there is a need to have a temporary space to perform file
+# manipulations, staging, etc. It is also desireable to have that temporary
+# space automatically cleaned up by the OS incase the script is unable to
+# to clean up after itself due to a failure. It is also desireable to have the
+# space be non-root friendly for user level scripts. While there are probably
+# many ways to achieve the above requirements, there is a simple OS mechanism
+# we can take advantage of. Most Linux distributions supply a RAM backed 
+# temporary file system mapped to the '/dev/shm' device. This space is limited
+# to the amount of available RAM, but can be used by any script for temporary
+# storage. RAM memory is lost between boot cycles ensuring that even if the
+# script fails to clean up after itself, the temporary files will eventually be
+# removed. We use this OS mechanism to create a script controlled temporary
+# directory that is time stamped and locked down with user only permissions.
+# If you choose to remove the temporary directory feature, you will have to
+# refactor some of the other boiler plate functions in this script as they
+# interact with and use the temporary directory.
+#
+
+readonly TEMP_DIR_PATH="/dev/shm/${THIS_SCRIPT_NAME%.*}---${START_EXECUTION_TIMESTAMP}"
 
 #
 # Automatic log saving can be very helpful for automated scripts or for
@@ -187,11 +217,12 @@ function parse_command_line()
 
 #
 # Use these functions instead of 'echo' or 'printf' for all informational
-# output as these functions are built to work with automatic log saving
-# if you decide to enable it. 'log_error', 'log_warning', 'log_info' can
-# be used for error, warning, and info messages respectively. 'logit' can
-# be used directly or wrapped in a new logging function for log messages that
-# need one or more customizations (ex. specific coloring, custom prefix, etc.).
+# output. Using these functions not only helps with code readability, but
+# each function is also built to work with automatic log saving if it is
+# enabled. 'log_error', 'log_warning', 'log_info' can be used for error,
+# warning, and info messages respectively. 'logit' can be used directly or
+# wrapped in a new logging function for log messages that need one or more
+# customizations (ex. specific coloring, custom prefix, etc.).
 #
 
 function logit()
@@ -223,8 +254,8 @@ function log_info()
 }
 
 #
-# Use this function to abort script execution when an error scenario is
-# encountered.
+# Use this function to abort script execution when an unrecoverable error
+# scenario is encountered.
 #
 
 function abort()
@@ -252,6 +283,7 @@ function cleanup()
 function setup_temp_dir()
 {
     mkdir -p "${TEMP_DIR_PATH}"
+    chmod 700 "${TEMP_DIR_PATH}"
     trap cleanup SIGINT SIGTERM ERR EXIT
 }
 
@@ -306,7 +338,11 @@ function setup_logger()
 {
     setup_logger_fds
     setup_logger_color_formatters
-    declare -F "setup_log_saving" 1>/dev/null && setup_log_saving || :
+
+    if declare -F "setup_log_saving" 1>/dev/null
+    then
+        setup_log_saving
+    fi
 }
 
 function init()
@@ -346,7 +382,7 @@ function main()
         return 0
     fi
 
-    logit "Hello from '${THIS_SCRIPT_NAME}'. Below are some examples of script features."
+    log_info "Hello from '${THIS_SCRIPT_NAME}'. Below are some examples of script features."
 
     logit "----"
     logit "Example: Manual page."
