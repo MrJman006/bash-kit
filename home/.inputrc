@@ -8,6 +8,6 @@ $if mode=vi
     "fd": vi-movement-mode
 
     set keymap vi-command
-    "B": beginning-of-line
-    "E": end-of-line
+    "BLT": beginning-of-line
+    "ELT": end-of-line
 $endif

@@ -1,4 +1,4 @@
-function jcd_generate_passphrase()
+function generate_passphrase()
 {
     local show_usage="no"
 

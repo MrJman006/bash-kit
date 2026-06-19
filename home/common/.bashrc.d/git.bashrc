@@ -1,4 +1,4 @@
-function jcd_git_init()
+function git_init()
 {
     if [[ -d .git ]]
     then
@@ -11,22 +11,6 @@ function jcd_git_init()
     #
 
     git init || return 1
-
-    #
-    # Prompt for the user's name.
-    #
-
-    local commiter_name
-    read -p "Commiter Name: " commiter_name
-    git config user.name "${commiter_name}"
-
-    #
-    # Prompt for the user's email.
-    #
-
-    local commiter_email
-    read -p "Commiter Email: " commiter_email
-    git config user.email "${commiter_email}" 
 
     #
     # Add a .gitignore file.
@@ -91,20 +75,50 @@ function jcd_git_init()
 
 export GIT_EDITOR=vim
 
-alias gs="git status"
-alias ga="git add"
-alias gc="git commit"
-alias gb="git branch"
+if ! $(type __setup_git_aliases 1>/dev/null 2>&1)
+then
+    function __setup_git_aliases()
+    {
+        alias gs="git status"
+        alias ga="git add"
+        alias gc="git commit"
+        alias gb="git branch"
 
-alias gd="git diff --diff-algorithm=patience"
+        alias gd="git diff --diff-algorithm=patience"
 
-alias gl="git log"
-alias glf="git log --follow"
-alias glg="git log --graph --oneline --decorate"
-alias glgf="git log --graph --oneline --decorate --follow"
-alias glga="git log --graph --oneline --decorate --all"
-alias glgaf="git log --graph --oneline --decorate --all --follow"
-alias glgd="git log --graph --date=short --pretty=format\"%C(auto)%h %D%C(reset)%n%C(auto)subject: %s%C(reset)%n    %C(dim white)date: %ad%C(reset)%n%C(dim white)    author: %an%C(reset)%n\""
-alias glgdf="git log --graph --date=short --pretty=format\"%C(auto)%h %D%C(reset)%n%C(auto)subject: %s%C(reset)%n    %C(dim white)date: %ad%C(reset)%n%C(dim white)    author: %an%C(reset)%n\" --follow"
-alias glgda="git log --graph --date=short --pretty=format\"%C(auto)%h %D%C(reset)%n%C(auto)subject: %s%C(reset)%n    %C(dim white)date: %ad%C(reset)%n%C(dim white)    author: %an%C(reset)%n\" --all"
-alias glgdaf="git log --graph --date=short --pretty=format\"%C(auto)%h %D%C(reset)%n%C(auto)subject: %s%C(reset)%n    %C(dim white)date: %ad%C(reset)%n%C(dim white)    author: %an%C(reset)%n\" --all --follow"
+        alias gl="git log"
+        alias glf="git log --follow"
+        alias glg="git log --graph --oneline --decorate"
+        alias glgf="git log --graph --oneline --decorate --follow"
+        alias glga="git log --graph --oneline --decorate --all"
+        alias glgaf="git log --graph --oneline --decorate --all --follow"
+        alias glgd="git log --graph --date=short --pretty=format\"%C(auto)%h %D%C(reset)%n%C(auto)subject: %s%C(reset)%n    %C(dim white)date: %ad%C(reset)%n%C(dim white)    author: %an%C(reset)%n\""
+        alias glgdf="git log --graph --date=short --pretty=format\"%C(auto)%h %D%C(reset)%n%C(auto)subject: %s%C(reset)%n    %C(dim white)date: %ad%C(reset)%n%C(dim white)    author: %an%C(reset)%n\" --follow"
+        alias glgda="git log --graph --date=short --pretty=format\"%C(auto)%h %D%C(reset)%n%C(auto)subject: %s%C(reset)%n    %C(dim white)date: %ad%C(reset)%n%C(dim white)    author: %an%C(reset)%n\" --all"
+        alias glgdaf="git log --graph --date=short --pretty=format\"%C(auto)%h %D%C(reset)%n%C(auto)subject: %s%C(reset)%n    %C(dim white)date: %ad%C(reset)%n%C(dim white)    author: %an%C(reset)%n\" --all --follow"
+    }
+    __setup_git_aliases
+fi
+
+if ! $(type __setup_gitconfig 1>/dev/null 2>&1)
+then
+    function __setup_gitconfig()
+    {
+        echo "-- Calling '${FUNCTION[0]}'."
+        
+        local name
+        read -p "Name: " name
+        git config --global user.name "${name}"
+
+        local email
+        read -p "Email: " email
+        git config --global user.email "${email}"
+
+        # TODO: credential manager
+        # TODO: clone from file protocol
+        # TODO: diff algorithm patience
+        # TODO: diff tool
+        # TODO: merge tool
+    }
+    __setup_gitconfig
+fi
