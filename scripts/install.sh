@@ -24,7 +24,7 @@ function install()
     do
         echo "    item: ${module_item}"
         
-        if(-e "${install_prefix}/${module_item}")
+        if [ -e "${install_prefix}/${module_item}" ]
         then
             echo "        backing up existing item."
             mkdir -p "${install_prefix}/${CTX[BACKUP_DIR]}/$(dirname "${module_item}")"
@@ -47,7 +47,7 @@ function main()
         install home/msys2 "${HOME}"
     fi
 
-    if [ -e /etc/os-release]
+    if [ -e /etc/os-release ]
     then
         install home/linux "${HOME}"
     fi
